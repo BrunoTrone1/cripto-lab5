@@ -1,0 +1,744 @@
+\documentclass[letter,12pt]{article}
+\usepackage[paperheight=27.94cm,paperwidth=21.59cm,bindingoffset=0in,left=3cm,right=2.0cm, top=3.5cm,bottom=2.5cm, headheight=200pt, headsep=1.0\baselineskip]{geometry}
+\usepackage{graphicx,lastpage}
+\usepackage{upgreek}
+\usepackage{censor}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{pdfpages}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{adjustbox}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{rotating}
+\usepackage{multirow}
+\usepackage[utf8]{inputenc}
+\usepackage{float}
+\usepackage{hyperref}
+
+\renewcommand{\tablename}{Tabla}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+
+
+%
+\begin{document}
+%
+   \title{\Huge{Informe Laboratorio 5}}
+
+   \author{\textbf{Sección 1} \\  \\Alumno Bruno Rosales Franz \\ e-mail: bruno.rosales@mail.udp.cl}
+          
+   \date{Noviembre de 2025}
+
+   \maketitle
+
+   \newpage
+   
+   \tableofcontents
+ 
+  \newpage
+  
+
+\section*{Descripción de actividades}
+\addcontentsline{toc}{section}{Descripción de actividades}
+Para este último laboratorio, se solicita trabajar con Docker y el protocolo SSH, a fin de poder entender el concepto de cripografía asimétrica y firmas digitales.\\
+
+Para lo anterior deberá:
+
+\begin{itemize}
+    \item Crear 4 contenedores en Docker por medio de un DockerFile, donde cada uno tendrá el siguiente SO:
+        Ubuntu 16.10, Ubuntu 18.10, Ubuntu 20.10 y Ubuntu 22.10 a los cuales se llamarán C1, C2, C3 y C4 respectivamente.\\
+        El equipo con Ubuntu 22.10 también será utilizado como S1.
+        
+    \item  Para cada uno de ellos, deberá instalar el cliente openSSH disponible en los repositorios de apt, y para el equipo S1 deberá también instalar el servidor openSSH.
+
+    \item En S1 deberá crear el usuario \textquotedblleft\textbf{prueba}\textquotedblright con contraseña \textquotedblleft\textbf{prueba}\textquotedblright, para acceder a él desde los clientes por el protocolo SSH.
+    
+    \item En total serán 4 escenarios, donde cada uno corresponderá a los siguientes equipos:
+    \begin{itemize}
+        \item C1 $\rightarrow$ S1
+        \item C2 $\rightarrow$ S1
+        \item C3 $\rightarrow$ S1
+        \item C4 $\rightarrow$ S1
+    \end{itemize}
+\end{itemize}
+
+Pasos:
+
+\begin{enumerate}
+\item Para cada uno de los 4 escenarios, solo deberá establecer la conexión y no realizar ningún otro comando que pueda generar tráfico (como muestra la Figura). Deberá capturar el tráfico de red generado y analizar el patrón de tráfico generado por cada cliente. De esta forma podrá obtener una huella digital para cada cliente a partir de su tráfico.
+
+Indique el tamaño de los paquetes del flujo generados por el cliente y el contenido asociado a cada uno de ellos. Indique qué información distinta contiene el escenario siguiente (diff incremental). El objetivo de este paso es identificar claramente los cambios entre las distintas versiones de ssh.\\
+
+\newpage
+
+\item Para poder identificar que el usuario efectivamente es el informante, éste utilizará una versión única de cliente. ¿Con qué cliente SSH se habrá generado el siguiente tráfico?
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=1\linewidth]{Desarrollo/trafico.png}
+    \caption{Tráfico generado del informante}
+    \label{fig:trafico}
+\end{figure}
+
+Replique este tráfico generado en la imagen. Debe generar el tráfico con la misma versión resaltada en azul. Recuerde que toda la información generada es parte del sw, por lo tanto usted puede modificar toda la información.
+
+\item Para que el informante esté seguro de nuestra identidad, nos pide que el patrón del tráfico de nuestro server también sea modificado, hasta que el Key Exchange Init del server sea menor a 300 bytes. Indique qué pasos realizó para lograr esto.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Desarrollo/exchange.png}
+    \caption{Captura del Key Exchange}
+    \label{fig:exchange}
+\end{figure}
+
+\item Tomando en cuenta lo aprendido en este laboratorio, así como en los anteriores, explique el protocolo OpenSSH y las diferentes capas de seguridad que son parte del protocolo para garantizar los principios de seguridad de la información, integridad, confidencialidad, disponibilidad, autenticidad y no repudio. Es importante que sea muy específico en el objetivo del principio en el protocolo. En caso de considerar que alguno de los principios no se cumple, justifique su razonamiento. Es fundamental que su análisis se base en el tráfico SSH interceptado.
+
+\end{enumerate}
+
+\section{Desarrollo (Parte 1)}
+
+\subsection{Códigos de cada Dockerfile}
+Se escribe un Dockerfile genérico que sirve para C1, C2, C3 y C4-S1. Estos archivos contienen el código a ejecutar para que Docker descargue la imagen de cada SO respectivamente. Además, como paso extra, se verifica que funcionen ejecutando el contenedor, lo que devuelve la consola de Ubuntu.
+Específicamente, se instala para cada cliente el 'openssh-client' y para el Servidor (C4/S1) 'openssh-client' y 'openssh-server'. Esto se hace con una serie de comandos: 'FROM ...' es para seleccionar el sistema base, 'ENV ...' es para evitar que apt pida la interacción del usuario, lo que resulta molesto en Docker, 'sed -i ...' es para cambiar los repositorios a 'old-releases.ubuntu.com' (si no, no es posible encontrar la imagen correcta), y finalmente, la serie de comandos con 'apt' es para actualizar, limpiar y dejar listo el cliente. En el caso del C4-S1 o el cliente-servidor, es que se instala 'openssh-server' y distintos paquetes de utilidad para realizar las actividades.
+Cabe destacar que todos los códigos se encuentran en sus respectivas carpetas (C1, C2, C3 y C4-S1) en el  \href{https://github.com/BrunoTrone1/cripto-lab5}{repositorio de GitHub}.
+
+Comando de instalación (depende de cómo estén los directorios): 
+
+'docker build -t lab\_c1:16.10 ./C1'
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{Actividad 1.1/Ubuntu 16.10.png}
+    \caption{Dockerfile para la instalación del cliente 1.}
+    \label{fig:Ubuntu 16.10}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{Actividad 1.1/Ubuntu 16.10 ejecutado.png}
+    \caption{Contenedor con Ubuntu 16.10 ejecutado.}
+    \label{fig:Ubuntu 16.10 ejecutado}
+\end{figure}
+\subsubsection{C2}
+Comando de instalación (depende de cómo estén los directorios): 
+
+'docker build -t lab\_c2:18.10 ./C2'
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{Actividad 1.1/Ubuntu 18.10.png}
+    \caption{Dockerfile para la instalación del cliente 2.}
+    \label{fig:Ubuntu 18.10}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{Actividad 1.1/Ubuntu 18.10 ejecutado.png}
+    \caption{Contenedor con Ubuntu 18.10 ejecutado.}
+    \label{fig:Ubuntu 18.10 ejecutado}
+\end{figure}
+\subsubsection{C3}
+Comando de instalación (depende de cómo estén los directorios): 
+
+'docker build -t lab\_c3:20.10 ./C3'
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{Actividad 1.1/Ubuntu 20.10.png}
+    \caption{Dockerfile para la instalación del cliente 3.}
+    \label{fig:Ubuntu 20.10}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{Actividad 1.1/Ubuntu 20.10 ejecutado.png}
+    \caption{Contenedor con Ubuntu 20.10 ejecutado.}
+    \label{fig:Ubuntu 20.10 ejecutado}
+\end{figure}
+\subsubsection{C4/S1}
+Comando de instalación (depende de cómo estén los directorios): 
+
+'docker build -t lab\_c4:22.10 ./C4-S1'
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{Actividad 1.1/Ubuntu 22.10.png}
+    \caption{Dockerfile para la instalación del cliente-servidor 4.}
+    \label{fig:Ubuntu 22.10}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{Actividad 1.1/Ubuntu 22.10 ejecutado.png}
+    \caption{Contenedor con Ubuntu 22.10 ejecutado.}
+    \label{fig:Ubuntu 22.10 ejecutado}
+\end{figure}
+
+\subsection{Creación de las credenciales para S1}
+Para la creación de las credenciales para conectarse desde los distintos clientes al servidor, se empieza desde el mismo Dockerfile de la Figura \ref{fig:Ubuntu 22.10}, donde se le entrega como instrucciones crear el usuario, como se aprecia a continuación.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.2/Codigo creacion usuario.png}
+    \caption{Captura del código del Dockerfile de C4-S1, donde se aprecia la creación del usuario.}
+    \label{fig:Codigo creacion usuario}
+\end{figure}
+
+Para verificar esto, nos conectamos al cliente-servidor desde bash con el comando (sujeto a cómo estén los directorios y nombre del proyecto) 'docker run -it --name C4-S1 lab\_c4:22.10 bash'. Una vez dentro, verificamos que se haya creado el usuario 'prueba' con el comando 'id prueba' (ver en Figura \ref{fig:Verificar si existe}), el cual nos retorna de existir información sobre el usuario. Esto nos dice que se aplicó correctamente el código del Dockerfile, por lo que no es necesario verificar que se haya aplicado la configuración de que se permita acceso SSH por autentificación mediante contraseña. 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.2/Verificar si existe.png}
+    \caption{Captura de la bash al verificar si existe el usuario 'prueba'.}
+    \label{fig:Verificar si existe}
+\end{figure}
+
+Posteriormente, se verifica si está escuchando el servicio SSH mediante el comando 'ps aux | grep ssh', el cual verifica 'sshd' (demonio del servidor SSH, que en pocas palabras es el programa que se ejecuta en la máquina para permitir las conexiones) sé esté ejecutando y escuchando. En este caso, no se estaba ejecutando, por lo que se procedió a activarlo con '/usr/sbin/sshd' y verificamos que quedó activo ejecutando 'ps aux | grep ssh' nuevamente, como se ve en la Figura \ref{fig:Verificar si está escuchando}. En este caso muestra que está en modo 'listener', lo que da por listo el proceso de verificación.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.2/Verificar si esta escuchando.png}
+    \caption{Captura de la bash luego de activar sshd.}
+    \label{fig:Verificar si esta escuchando}
+\end{figure}
+
+Finalmente, se procede a conectarse desde el cliente 1, quien lo hace con el comando 'ssh prueba@172.17.0.3' (la IP se consigue desde Docker, con el comando 'docker inspect -f ...', que es para ver la IP de los contenedores, ver Figura \ref{fig:Verificar IP}). Este proceso nos lleva a conectarnos mediante SSH usando la contraseña del usuario 'prueba'. Una vez completado el proceso, tenemos acceso a la bash como se aprecia en la Figura \ref{fig:C1 conectado}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.2/Verificar IP.png}
+    \caption{Resultado al verificar la IP del contenedor servidor.}
+    \label{fig:Verificar IP}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.2/C1 conectado.png}
+    \caption{Captura de la bash luego de conectarse exitosamente al servidor.}
+    \label{fig:C1 conectado}
+\end{figure}
+
+El proceso es el mismo para los demás clientes, como se aprecia en las figs. \ref{fig:C2 conectado}, \ref{fig:C3 conectado}, \ref{fig:C4 conectado}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.2/C2 conectado.png}
+    \caption{Captura de la bash luego de conectarse exitosamente al servidor.}
+    \label{fig:C2 conectado}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.2/C3 conectado.png}
+    \caption{Captura de la bash luego de conectarse exitosamente al servidor.}
+    \label{fig:C3 conectado}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.2/C4 conectado.png}
+    \caption{Captura de la bash luego de conectarse exitosamente al servidor.}
+    \label{fig:C4 conectado}
+\end{figure}
+
+\subsection{Tráfico generado por C1, detallando tamaño paquetes del flujo y el HASSH respectivo (detallado)}
+Primero se tiene que HASSH es una técnica para identificar clientes y servidores SSH (como en nuestro caso) analizando los algoritmos anunciados en el saludo (Client Hello y Server Hello). Para esto se usa un código en Python que extrae los datos desde una captura formato .pcap y nos entrega los HASSH del cliente y servidor (\href{https://github.com/salesforce/hassh}{HASSH}. 
+El procedimiento es simple, se inicia la captura desde el servidor con tshark (terminal wireshark para capturar tráfico en la red, se instala  realizando los comandos 'apg-get update' y 'apt-get install -y --no-install-recommends tcpdump') mediante el comando 'tcpdump -i any port 22 -w c1\_ssh.pcap' (ver Figura \ref{fig:Inicio captura C1}. Esto escucha todas las interfaces de red en el puerto 22 y guarda el resultado en el archivo 'c1\_ssh.pcap'. Este archivo es procesado luego por el código del repositorio de HASSH para obtener el hash tanto del cliente como del servidor.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.3/Inicio captura C1.png}
+    \caption{Captura de con tshark del tráfico de C1.}
+    \label{fig:Inicio captura C1}
+\end{figure}
+
+Ahora, luego de explicar todo, se inicia con el cliente C1 (IP 172.17.0.4), conectándolo mediante SSH al servidor S1 (IP 172.17.0.3) utilizando el puerto TCP 22. Durante el establecimiento de la conexión SSH se identifica el flujo de intercambio de claves ('SSH\_MSG\_KEXINIT'), en el cual se negocian algoritmos criptográficos. La captura se encuentra en el repositorio, y se puede apreciar en la Figura \ref{fig:Captura C1}, mientras que el HASSH generado en la Figura \ref{fig:HASSH C1}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.3/Captura C1.png}
+    \caption{Captura resultante del tráfico de C1 con el servidor.}
+    \label{fig:Captura C1}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.3/HASSH C1.png}
+    \caption{HASSH generado para la captura de C1.}
+    \label{fig:HASSH C1}
+\end{figure}
+
+Aquí se muestra la huella digital del tráfico SSH generado entre un cliente y un servidor, incluyendo los tamaños de los paquetes intercambiados (1504 bytes del cliente al servidor y 1152 bytes del servidor al cliente), junto con los valores HASSH que identifican de manera única las configuraciones criptográficas usadas en cada extremo. También se tiene la cadena de identificación de ambas versiones de OpenSSH empleadas, y los algoritmos de intercambio de claves (KEX), cifrado (Cipher), autenticación MAC y compresión que el cliente ofrece para negociar la conexión segura, lo que permite diferenciar versiones y configuraciones de SSH al comparar con las versiones más nuevas.
+
+\begin{itemize}
+    \item \textbf{Tamaño Cliente-Servidor Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Servidor-Cliente Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Cliente-Servidor:}  1504 bytes
+    \item \textbf{Tamaño Servidor-Cliente:}  1152 bytes
+    \item \textbf{HASSH Cliente:} 0e4584cb9f2dd077dbf8ba0df8112d8e
+    \item \textbf{HASSH Servidor:} a984ff804585fabe3cd08f4b3849024a
+    \item \textbf{Identificación SSH Cliente:} SSH-2.0-OpenSSH\_7.3p1 Ubuntu-1ubuntu0.1
+    \item \textbf{Identificación SSH Servidor:} SSH-2.0-OpenSSH\_9.0p1 Ubuntu-1ubuntu7.3
+     \item \textbf{Algoritmos del Cliente KEX:} curve25519-sha256@libssh.org, ecdh-sha2-nistp256, 
+     
+     ecdh-sha2-nistp384, ecdh-sha2-nistp521, 
+     
+     diffie-hellman-group-exchange-sha256, diffie-hellman-group16-sha512, 
+     
+     diffie-hellman-group18-sha512, diffie-hellman-group-exchange-sha1, 
+     
+     diffie-hellman-group14-sha256, diffie-hellman-group14-sha1, 
+     
+     ext-info-c
+    \item \textbf{Algoritmos del Cliente Cipher:} chacha20-poly1305@openssh.com, aes128-ctr,
+    
+    aes192-ctr, aes256-ctr,
+    
+    aes128-gcm@openssh.com, aes256-gcm@openssh.com,
+    
+    aes128-cbc, aes192-cbc,
+    
+    aes256-cbc, 3des-cbc
+    \item \textbf{Algoritmos del Cliente MAC:} umac-64-etm@openssh.com, umac-128-etm@openssh.com,
+    
+    hmac-sha2-256-etm@openssh.com, hmac-sha2-512-etm@openssh.com,
+    
+    hmac-sha1-etm@openssh.com, umac-64@openssh.com,
+    
+    umac-128@openssh.com, hmac-sha2-256,
+    
+    hmac-sha2-512, hmac-sha1
+    \item \textbf{Algoritmos del Cliente Compression:} none, zlib@openssh.com,
+    
+    zlib
+\end{itemize}
+
+Este mismo proceso se realiza para cada parte.
+
+\subsection{Tráfico generado por C2, detallando tamaño paquetes del flujo y el HASSH respectivo (detallado)}
+
+Se inicia la captura, como se muestra en la siguiente Figura.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.3/Inicio captura C2.png}
+    \caption{Captura de con tshark del tráfico de C2.}
+    \label{fig:Inicio captura C2}
+\end{figure}
+
+Y se obtienen los siguientes resultados, como se aprecia en las figs. \ref{fig:Captura C2}, \ref{fig:HASSH C2}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.3/Captura C2.png}
+    \caption{Captura resultante del tráfico de C2 con el servidor.}
+    \label{fig:Captura C2}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.3/HASSH C2.png}
+    \caption{HASSH generado para la captura de C2.}
+    \label{fig:HASSH C2}
+\end{figure}
+
+La captura muestra el inicio del intercambio criptográfico SSH entre C2 (OpenSSH 7.7p1) y el servidor (OpenSSH 9.0p1), donde ambos envían el mensaje 'SSH\_MSG\_KEXINIT' anunciando sus algoritmos soportados para negociar una conexión segura. A partir de estos parámetros se generaron las huellas HASSH del cliente (06046964c022c6407d15a27b12a6a4fb) y del servidor (a984ff804585fabe3cd08f4b3849024a), que actúan como identificadores únicos de sus configuraciones criptográficas.
+
+\begin{itemize}
+    \item \textbf{Tamaño Cliente-Servidor Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Servidor-Cliente Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Cliente-Servidor:}  1432 bytes
+    \item \textbf{Tamaño Servidor-Cliente:}  1152 bytes
+    \item \textbf{HASSH Cliente:} 06046964c022c6407d15a27b12a6a4fb
+    \item \textbf{HASSH Servidor:} a984ff804585fabe3cd08f4b3849024a
+    \item \textbf{Identificación SSH Cliente:} SSH-2.0-OpenSSH\_7.7p1 Ubuntu-1ubuntu0.3
+    \item \textbf{Identificación SSH Servidor:} SSH-2.0-OpenSSH\_9.0p1 Ubuntu-1ubuntu7.3
+    \item \textbf{Algoritmos del Cliente KEX:} curve25519-sha256, curve25519-sha256@libssh.org,
+    
+    ecdh-sha2-nistp256, ecdh-sha2-nistp384,
+    
+    ecdh-sha2-nistp521, diffie-hellman-group-exchange-sha256,
+    
+    diffie-hellman-group16-sha512, diffie-hellman-group18-sha512,
+    
+    diffie-hellman-group14-sha256, ext-info-c
+    \item \textbf{Algoritmos del Cliente Cipher:} chacha20-poly1305@openssh.com, aes128-ctr, 
+    
+    aes192-ctr, aes256-ctr, aes128-gcm@openssh.com, 
+    
+    aes256-gcm@openssh.com
+    \item \textbf{Algoritmos del Cliente MAC:} umac-64-etm@openssh.com, umac-128-etm@openssh.com,
+    
+    hmac-sha2-256-etm@openssh.com, hmac-sha2-512-etm@openssh.com,
+    
+    hmac-sha1-etm@openssh.com, umac-64@openssh.com,
+    
+    umac-128@openssh.com, hmac-sha2-256,
+    
+    hmac-sha2-512, hmac-sha1
+    \item \textbf{Algoritmos del Cliente Compression:} none, zlib@openssh.com,
+    
+    zlib
+\end{itemize}
+
+\subsection{Tráfico generado por C3, detallando tamaño paquetes del flujo y el HASSH respectivo (detallado)}
+Se inicia la captura, como se muestra en la siguiente Figura.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.3/Inicio captura C3.png}
+    \caption{Captura de con tshark del tráfico de C3.}
+    \label{fig:Inicio captura C3}
+\end{figure}
+
+Y se obtienen los siguientes resultados, como se aprecia en las figs. \ref{fig:Captura C3}, \ref{fig:HASSH C3}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.3/Captura C3.png}
+    \caption{Captura resultante del tráfico de C3 con el servidor.}
+    \label{fig:Captura C3}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.3/HASSH C3.png}
+    \caption{HASSH generado para la captura de C3.}
+    \label{fig:HASSH C3}
+\end{figure}
+
+En este escenario, el cliente utiliza OpenSSH\_8.3p1 y el servidor mantiene la versión OpenSSH\_9.0p1, iniciando el intercambio criptográfico mediante el mensaje 'SSH\_MSG\_KEXINIT'. El cliente anuncia un conjunto de algoritmos muy similar al del escenario anterior, pero con una huella HASSH distinta (ae8bd7dd09970555aa4c6ed22adbbf56), lo que permite diferenciarlo como una variante específica de configuración criptográfica. El servidor conserva la misma huella HASSH (a984ff804585fabe3cd08f4b3849024a).
+
+\begin{itemize}
+    \item \textbf{Tamaño Cliente-Servidor Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Servidor-Cliente Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Cliente-Servidor:} 1584 bytes
+    \item \textbf{Tamaño Servidor-Cliente:} 1152 bytes 
+    \item \textbf{HASSH Cliente:} ae8bd7dd09970555aa4c6ed22adbbf56
+    \item \textbf{HASSH Servidor:} a984ff804585fabe3cd08f4b3849024a
+    \item \textbf{Identificación SSH Cliente:} SSH-2.0-OpenSSH\_8.3p1 Ubuntu-1ubuntu0.1
+    \item \textbf{Identificación SSH Servidor:} SSH-2.0-OpenSSH\_9.0p1 Ubuntu-1ubuntu7.3
+    \item \textbf{Algoritmos del Cliente KEX:} curve25519-sha256, curve25519-sha256@libssh.org,
+    
+    ecdh-sha2-nistp256, ecdh-sha2-nistp384,
+    
+    ecdh-sha2-nistp521, diffie-hellman-group-exchange-sha256,
+    
+    diffie-hellman-group16-sha512, diffie-hellman-group18-sha512,
+    
+    diffie-hellman-group14-sha256, ext-info-c
+    \item \textbf{Algoritmos del Cliente Cipher:} chacha20-poly1305@openssh.com, aes128-ctr,
+    
+    aes192-ctr, aes256-ctr,
+    
+    aes128-gcm@openssh.com, aes256-gcm@openssh.com
+    \item \textbf{Algoritmos del Cliente MAC:} umac-64-etm@openssh.com, umac-128-etm@openssh.com,
+    
+    hmac-sha2-256-etm@openssh.com, hmac-sha2-512-etm@openssh.com,
+    
+    hmac-sha1-etm@openssh.com, umac-64@openssh.com,
+    
+    umac-128@openssh.com, hmac-sha2-256, hmac-sha2-512,
+    
+    hmac-sha1
+    \item \textbf{Algoritmos del Cliente Compression:} none, zlib@openssh.com,
+    
+    zlib
+\end{itemize}
+
+
+\subsection{Tráfico generado por C4 ((iface lo), detallando tamaño paquetes del flujo y el HASSH respectivo (detallado)}
+
+Se inicia la captura, como se muestra en la siguiente Figura.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.3/Inicio captura C4.png}
+    \caption{Captura de con tshark del tráfico de C4.}
+    \label{fig:Inicio captura C4}
+\end{figure}
+
+Y se obtienen los siguientes resultados, como se aprecia en las figs. \ref{fig:Captura C4}, \ref{fig:HASSH C4}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.3/Captura C4.png}
+    \caption{Captura resultante del tráfico de C4 con el servidor.}
+    \label{fig:Captura C4}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 1.3/HASSH C4.png}
+    \caption{HASSH generado para la captura de C4.}
+    \label{fig:HASSH C4}
+\end{figure}
+
+El escenario C4 corresponde a una conexión SSH en la que tanto el cliente como el servidor utilizan OpenSSH 9.0p1 en Ubuntu, lo que genera un patrón de negociación completamente alineado entre ambos extremos, ya que son localmente iguales (mismo contenendor).
+
+\begin{itemize}
+    \item \textbf{Tamaño Cliente-Servidor Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Servidor-Cliente Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Cliente-Servidor:} 1576 bytes
+    \item \textbf{Tamaño Servidor-Cliente:} 1152 bytes
+    \item \textbf{HASSH Cliente:} 78c05d999799066a2b4554ce7b1585a6
+    \item \textbf{HASSH Servidor:} a984ff804585fabe3cd08f4b3849024a
+    \item \textbf{Identificación SSH Cliente:} SSH-2.0-OpenSSH\_9.0p1 Ubuntu-1ubuntu7.3
+    \item \textbf{Identificación SSH Servidor:} SSH-2.0-OpenSSH\_9.0p1 Ubuntu-1ubuntu7.3
+    \item \textbf{Algoritmos del Cliente KEX:} sntrup761x25519-sha512@openssh.com, curve25519-sha256,
+    
+    curve25519-sha256@libssh.org, ecdh-sha2-nistp256,
+    
+    ecdh-sha2-nistp384, ecdh-sha2-nistp521,
+    
+    diffie-hellman-group-exchange-sha256, diffie-hellman-group16-sha512,
+    
+    diffie-hellman-group18-sha512, diffie-hellman-group14-sha256,
+    
+    ext-info-c
+    \item \textbf{Algoritmos del Cliente Cipher:} chacha20-poly1305@openssh.com, aes128-ctr, 
+    
+    aes192-ctr, aes256-ctr,
+    
+    aes128-gcm@openssh.com, aes256-gcm@openssh.com
+    \item \textbf{Algoritmos del Cliente MAC:} umac-64-etm@openssh.com, umac-128-etm@openssh.com,
+    
+    hmac-sha2-256-etm@openssh.com, hmac-sha2-512-etm@openssh.com,
+    
+    hmac-sha1-etm@openssh.com, umac-64@openssh.com, 
+    
+    umac-128@openssh.com, hmac-sha2-256, 
+    
+    hmac-sha2-512, hmac-sha1
+    \item \textbf{Algoritmos del Cliente Compression:} none, zlib@openssh.com,
+    
+    zlib
+\end{itemize}
+
+\subsection{Compara la versión de HASSH obtenida con la base de datos para validar si el cliente corresponde al mismo}
+Se revisa en la sección de 'hashGen' del repositorio de HASSH (específicamente \href{https://github.com/salesforce/hassh/blob/master/python/hasshGen/hassh_fingerprints.json}{esta parte}), donde se ven las posibles coincidencias con los clientes y servidor. Se tienen las imágenes de Ubuntu con versiones 16.10, 18.10, 20.10 y 22.10 para C1, C2, C3 y C4-S1 respectivamente. 
+En este caso, únicamente se tienen datos para la versión 18.10, que es la única que calza dentro de las versiones disponibles. Los resultados son que para esta versión el HASSH esperado es:
+
+\begin{itemize}
+    \item \textbf{sshClient:}openssh-client
+    \item \textbf{sshClientVersion:} 1:7.7p1-4
+    \item \textbf{clientIdentificationString:} SSH-2.0-OpenSSH\_7.7p1 Ubuntu-4, 
+    \item \textbf{hassh}: 06046964c022c6407d15a27b12a6a4fb
+    \item \textbf{hasshAlgorithms}: curve25519-sha256,curve25519-sha256@libssh.org, ...
+\end{itemize}
+
+Las versiones de Ubuntu 16.10, 20.10 y 22.10 no calzan con los valores HASSH registrados en la base de datos debido a que utilizan compilaciones y configuraciones de OpenSSH que no son iguales en el conjunto y orden de algoritmos anunciados durante el intercambio 'SSH\_MSG\_KEXINIT', lo cual afecta la generación del hash. Estas variaciones se explican por diferencias en paquetes, parches de seguridad, librerías criptográficas e incluso ajustes en los archivos de configuración de SSH presentes en cada versión del sistema. En cambio, la versión Ubuntu 18.10 sí coincide porque emplea una compilación y una lista de algoritmos que corresponden con la huella registrada en la base de datos HASSH, permitiendo una coincidencia exacta entre los valores obtenidos y los existentes en el repositorio de fingerprints.
+\subsection{Tipo de información contenida en cada uno de los paquetes generados en texto plano}
+Esto ya se hizo en secciones anteriores. 
+Durante la captura de la sesión SSH se identificaron paquetes en texto plano correspondientes al intercambio inicial del protocolo antes de que se estableciera el canal cifrado. Estos paquetes contienen la cadena de identificación del software SSH utilizado por el cliente y el servidor, junto con las listas completas de algoritmos de intercambio de claves (KEX), cifrado, integridad (MAC) y compresión anunciados en los mensajes 'SSH\_MSG\_KEXINIT'. Esta información constituye la base para la huella criptográfica HASSH/HASSHServer, ya que se encuentra visible antes de que se produzca el intercambio de claves y el tráfico posterior que se ha cifrado.
+\subsubsection{C1}
+\begin{itemize}
+    \item \textbf{Tamaño Cliente-Servidor Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Servidor-Cliente Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Cliente-Servidor:}  1504 bytes
+    \item \textbf{Tamaño Servidor-Cliente:}  1152 bytes
+    \item \textbf{Identificación SSH Cliente:} SSH-2.0-OpenSSH\_7.3p1 Ubuntu-1ubuntu0.1
+    \item \textbf{Identificación SSH Servidor:} SSH-2.0-OpenSSH\_9.0p1 Ubuntu-1ubuntu7.3
+     \item \textbf{Algoritmos del Cliente KEX:} curve25519-sha256@libssh.org, ecdh-sha2-nistp256, 
+     
+     ecdh-sha2-nistp384, ecdh-sha2-nistp521, 
+     
+     diffie-hellman-group-exchange-sha256, diffie-hellman-group16-sha512, 
+     
+     diffie-hellman-group18-sha512, diffie-hellman-group-exchange-sha1, 
+     
+     diffie-hellman-group14-sha256, diffie-hellman-group14-sha1, 
+     
+     ext-info-c
+    \item \textbf{Algoritmos del Cliente Cipher:} chacha20-poly1305@openssh.com, aes128-ctr,
+    
+    aes192-ctr, aes256-ctr,
+    
+    aes128-gcm@openssh.com, aes256-gcm@openssh.com,
+    
+    aes128-cbc, aes192-cbc,
+    
+    aes256-cbc, 3des-cbc
+    \item \textbf{Algoritmos del Cliente MAC:} umac-64-etm@openssh.com, umac-128-etm@openssh.com,
+    
+    hmac-sha2-256-etm@openssh.com, hmac-sha2-512-etm@openssh.com,
+    
+    hmac-sha1-etm@openssh.com, umac-64@openssh.com,
+    
+    umac-128@openssh.com, hmac-sha2-256,
+    
+    hmac-sha2-512, hmac-sha1
+    \item \textbf{Algoritmos del Cliente Compression:} none, zlib@openssh.com,
+    
+    zlib
+\end{itemize}
+\subsubsection{C2}
+\begin{itemize}
+    \item \textbf{Tamaño Cliente-Servidor Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Servidor-Cliente Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Cliente-Servidor:}  1432 bytes
+    \item \textbf{Tamaño Servidor-Cliente:}  1152 bytes
+    \item \textbf{Identificación SSH Cliente:} SSH-2.0-OpenSSH\_7.7p1 Ubuntu-1ubuntu0.3
+    \item \textbf{Identificación SSH Servidor:} SSH-2.0-OpenSSH\_9.0p1 Ubuntu-1ubuntu7.3
+    \item \textbf{Algoritmos del Cliente KEX:} curve25519-sha256, curve25519-sha256@libssh.org,
+    
+    ecdh-sha2-nistp256, ecdh-sha2-nistp384,
+    
+    ecdh-sha2-nistp521, diffie-hellman-group-exchange-sha256,
+    
+    diffie-hellman-group16-sha512, diffie-hellman-group18-sha512,
+    
+    diffie-hellman-group14-sha256, ext-info-c
+    \item \textbf{Algoritmos del Cliente Cipher:} chacha20-poly1305@openssh.com, aes128-ctr, 
+    
+    aes192-ctr, aes256-ctr, aes128-gcm@openssh.com, 
+    
+    aes256-gcm@openssh.com
+    \item \textbf{Algoritmos del Cliente MAC:} umac-64-etm@openssh.com, umac-128-etm@openssh.com,
+    
+    hmac-sha2-256-etm@openssh.com, hmac-sha2-512-etm@openssh.com,
+    
+    hmac-sha1-etm@openssh.com, umac-64@openssh.com,
+    
+    umac-128@openssh.com, hmac-sha2-256,
+    
+    hmac-sha2-512, hmac-sha1
+    \item \textbf{Algoritmos del Cliente Compression:} none, zlib@openssh.com,
+    
+    zlib
+\end{itemize}
+\subsubsection{C3}
+\begin{itemize}
+    \item \textbf{Tamaño Cliente-Servidor Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Servidor-Cliente Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Cliente-Servidor:} 1584 bytes
+    \item \textbf{Tamaño Servidor-Cliente:} 1152 bytes 
+    \item \textbf{Identificación SSH Cliente:} SSH-2.0-OpenSSH\_8.3p1 Ubuntu-1ubuntu0.1
+    \item \textbf{Identificación SSH Servidor:} SSH-2.0-OpenSSH\_9.0p1 Ubuntu-1ubuntu7.3
+    \item \textbf{Algoritmos del Cliente KEX:} curve25519-sha256, curve25519-sha256@libssh.org,
+    
+    ecdh-sha2-nistp256, ecdh-sha2-nistp384,
+    
+    ecdh-sha2-nistp521, diffie-hellman-group-exchange-sha256,
+    
+    diffie-hellman-group16-sha512, diffie-hellman-group18-sha512,
+    
+    diffie-hellman-group14-sha256, ext-info-c
+    \item \textbf{Algoritmos del Cliente Cipher:} chacha20-poly1305@openssh.com, aes128-ctr,
+    
+    aes192-ctr, aes256-ctr,
+    
+    aes128-gcm@openssh.com, aes256-gcm@openssh.com
+    \item \textbf{Algoritmos del Cliente MAC:} umac-64-etm@openssh.com, umac-128-etm@openssh.com,
+    
+    hmac-sha2-256-etm@openssh.com, hmac-sha2-512-etm@openssh.com,
+    
+    hmac-sha1-etm@openssh.com, umac-64@openssh.com,
+    
+    umac-128@openssh.com, hmac-sha2-256, hmac-sha2-512,
+    
+    hmac-sha1
+    \item \textbf{Algoritmos del Cliente Compression:} none, zlib@openssh.com,
+    
+    zlib
+\end{itemize}
+\subsubsection{C4/S1}
+\begin{itemize}
+    \item \textbf{Tamaño Cliente-Servidor Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Servidor-Cliente Protocolo SSHv2:}  113 bytes
+    \item \textbf{Tamaño Cliente-Servidor:} 1576 bytes
+    \item \textbf{Tamaño Servidor-Cliente:} 1152 bytes
+    \item \textbf{Identificación SSH Cliente:} SSH-2.0-OpenSSH\_9.0p1 Ubuntu-1ubuntu7.3
+    \item \textbf{Identificación SSH Servidor:} SSH-2.0-OpenSSH\_9.0p1 Ubuntu-1ubuntu7.3
+    \item \textbf{Algoritmos del Cliente KEX:} sntrup761x25519-sha512@openssh.com, curve25519-sha256,
+    
+    curve25519-sha256@libssh.org, ecdh-sha2-nistp256,
+    
+    ecdh-sha2-nistp384, ecdh-sha2-nistp521,
+    
+    diffie-hellman-group-exchange-sha256, diffie-hellman-group16-sha512,
+    
+    diffie-hellman-group18-sha512, diffie-hellman-group14-sha256,
+    
+    ext-info-c
+    \item \textbf{Algoritmos del Cliente Cipher:} chacha20-poly1305@openssh.com, aes128-ctr, 
+    
+    aes192-ctr, aes256-ctr,
+    
+    aes128-gcm@openssh.com, aes256-gcm@openssh.com
+    \item \textbf{Algoritmos del Cliente MAC:} umac-64-etm@openssh.com, umac-128-etm@openssh.com,
+    
+    hmac-sha2-256-etm@openssh.com, hmac-sha2-512-etm@openssh.com,
+    
+    hmac-sha1-etm@openssh.com, umac-64@openssh.com, 
+    
+    umac-128@openssh.com, hmac-sha2-256, 
+    
+    hmac-sha2-512, hmac-sha1
+    \item \textbf{Algoritmos del Cliente Compression:} none, zlib@openssh.com,
+    
+    zlib
+\end{itemize}
+
+\subsection{Diferencia entre C1 y C2}
+La principal diferencia entre las capturas C1 y C2 radica en las versiones de OpenSSH usadas por el cliente, lo cual impacta tanto en el tamaño de los paquetes como en los algoritmos de intercambio de claves ofrecidos. 
+En C1, el cliente utiliza OpenSSH 7.3p1, mientras que en C2 emplea OpenSSH 7.7p1, una versión más reciente que introduce ajustes en el conjunto de algoritmos KEX y Ciphers. Esto se refleja en una reducción del tamaño total del flujo Cliente-Servidor en C2 (1432 bytes) respecto de C1 (1504 bytes), aunque ambos mantienen el mismo tamaño en los mensajes iniciales SSHv2 de intercambio de identificación (113 bytes por dirección). Además, C1 incluye un listado más extenso de algoritmos de cifrado, incluyendo opciones CBC y 3DES, mientras que C2 ofrece un conjunto más depurado y moderno centrado en algoritmos basados en CTR y GCM. Estas diferencias son consistentes con la evolución de OpenSSH, que a partir de versiones posteriores elimina algoritmos criptográficos considerados obsoletos o menos seguros, lo que explica la variación observada entre ambas capturas.
+
+\subsection{Diferencia entre C2 y C3}
+La diferencia entre C2 y C3 se encuentra también en la versión del cliente SSH utilizado, donde C2 opera con OpenSSH 7.7p1, mientras que C3 utiliza una versión más reciente, OpenSSH 8.3p1, lo que se ve en el aumento del tamaño total de los mensajes Cliente-Servidor (1432 bytes en C2 frente a 1584 bytes en C3), aunque ambos mantienen idéntico tamaño en el intercambio inicial SSHv2 (113 bytes por dirección). A nivel criptográfico, ambos clientes presentan prácticamente el mismo conjunto de algoritmos KEX, Ciphers, MAC y Compresión, por lo que el incremento en C3 se asocia principalmente a cambios internos en la estructura del mensaje y metadatos propios de la versión más reciente de OpenSSH. En consecuencia, C3 no introduce diferencias significativas en las propuestas criptográficas respecto de C2, pero sí evidencia una mayor carga inicial en el flujo de negociación, consistente con el avance de la implementación SSH en Ubuntu y la evolución del protocolo hacia configuraciones más extensibles y descriptivas.
+
+\subsection{Diferencia entre C3 y C4}
+La diferencia entre los escenarios C3 y C4/S1 radica en la versión del cliente SSH. Mientras C3 utiliza OpenSSH 8.3p1, el escenario C4/S1 emplea la versión más reciente OpenSSH 9.0p1, lo que introduce cambios directos en la negociación criptográfica. En particular, se incorpora un nuevo algoritmo de intercambio de claves post-cuántico, sntrup761x25519-sha512@openssh.com
+
+\newpage
+
+\section{Desarrollo (Parte 2)}
+
+\subsection{Identificación del cliente SSH con versión \textquotedblleft?\textquotedblright}
+Con la información de la captura (cadena de identificación SSH-2.0-OpenSSH, KEXINIT cliente grande ≈ 1578 bytes, ECDH Key Exchange, luego New Keys y paquetes cifrados) no es posible afirmar con absoluta certeza la versión exacta solo por la descripción.
+Sin embargo, por el tamaño del KEXINIT y el patrón (ECDH, lista moderna de ciphers/MACs y compresión), el tráfico es consistente con un cliente OpenSSH moderno (por ejemplo OpenSSH 8.x–9.x), es decir, coincide más con C3 (OpenSSH\_8.3p1) o con C4 (OpenSSH\_9.0p1). Para decidir entre 8.3 y 9.0 hay un punto clave: si el KEXINIT coincide en su largo. El valor más cercano es el de C4, con 1576 bytes, por lo que se estima que el tráfico es proveniente de un cliente con versión OpenSSH\_9.0p1.
+
+\subsection{Replicación de tráfico al servidor (paso por paso)}
+Para recrear este tráfico, se comienza levantando el contenedor de C4-S1. Se prende el demonio SSH con '/usr/sbin/sshd' y se instala tcpdump para la captura, con 'apt-get install -y --no-install-recommends tcpdump'. Posteriormente, se inicia la captura en segundo plano de tcpdump con 'tcpdump -i any port 22 -w c4\_ssh\_recreate.pcap \&' y se conecta al cliente con la IP del contenedor servidor. Esta IP se obtiene con 'docker inspect -f'{{range .NetworkSettings.Networks}}{{.IPAdress}}{{end}}' C4-S1', y utilizando esta IP se conecta con el comando 'ssh prueba@<IP>'. Finalmente, se sale de la conexión, se baja el proceso de tcpdump deteniendo el proceso con 'kill 1\% <proceso-id>' y se obtiene la captura.  
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 2.2/Captura C4.png}
+    \caption{Captura resultante del tráfico de C4 con el servidor.}
+    \label{fig:Captura C4 2}
+\end{figure}
+
+Se puede apreciar que se tienen largos similares. Sin toda la información de paquetes, algoritmos y demás, es imposible saber a ciencia cierta qué versión de protocolo se está usando.
+
+\section{Desarrollo (Parte 3)}
+
+\subsection{Replicación del KEI con tamaño menor a 300 bytes (paso por paso)}
+
+Reducir el tamaño del Key Exchange Init (KEXINIT) del servidor SSH a menos de 300 bytes es posible, pero implica reducir la lista de algoritmos que el servidor anuncia, lo cual puede resultar en brechas de seguridad o problemas de conexión con los clientes. Este paquete suele ser grande (aproximadamente 1500 bytes de las capturas de los clientes) porque incluye muchos algoritmos soportados para cambios de llave, compresión, MACs, etc.
+Se repite el procedimiento del paso anterior. Para recrear este tráfico, se comienza levantando el contenedor de C4-S1. Se prende el demonio SSH con '/usr/sbin/sshd' y se instala tcpdump para la captura y nano para la edición de archivos, con 'apt-get install -y --no-install-recommends tcpdump nano'. Ahora, para reducir el largo, se debe configurar 'sshd\_config' para que solo anuncie uno o muy pocos algoritmos por categoría. Se accede a la este archivo mediante el comando 'nano /etc/ssh/sshd\_config' y se modifica, como se aprecia en la siguiente Figura.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 3/Archivo editado.png}
+    \caption{Archivo del servidor SSH editado.}
+    \label{fig:Archivo editado}
+\end{figure}
+
+Esto dejará el KEXINIT extremadamente pequeño, probablemente, ya que se le están dando pocos algoritmos a utilizar. Posteriormente, se necesita reiniciar SSH con service ssh restart y empezar la captura en segundo plano de tcpdump con 'tcpdump -i any port 22 -w c4\_ssh\_recreate.pcap \&'. Se conecta al cliente con la IP del contenedor servidor. Esta IP se obtiene con 'docker inspect -f'{{range .NetworkSettings.Networks}}{{.IPAdress}}{{end}}' C4-S1', y utilizando esta IP se conecta con el comando 'ssh prueba@<IP>'. Finalmente, se sale de la conexión, se baja el proceso de tcpdump deteniendo el proceso con 'kill 1\% <proceso-id>' y se obtiene la captura. Los resultados se aprecian en la Figura siguiente.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actividad 3/Captura.png}
+    \caption{Captura del tráfico con el KEI modificado.}
+    \label{fig:Archivo editado}
+\end{figure}
+
+Se aprecia que se tiene un KEI de 264 bytes de largo, lo cual es diferente al 1572 que se tenía en la misma versión. Esto refleja los cambios hechos en el archivo de configuración de SSHD, donde se modificó la cantidad de algoritmos a usar.
+
+\section{Desarrollo (Parte 4)}
+\subsection{Explicación OpenSSH en general}
+OpenSSH es una serie de herramientas que permiten implementar el protocolo SSH para establecer canales seguros (cifrados) entre cliente y servidor. Esto es su objetivo principal, reemplazando tecnologías antiguas y siendo un método seguro para el transporte de datos. 
+En un entorno SSH, el cliente inicia la conexión con TCP y se intercambian los identificadores y los algoritmos criptográficos de ambas partes, a modo de acordar cuáles se van a usar. Este proceso es el que se analizó durante este laboratorio, el cual puede brindar vulnerabilidades si se explota.
+
+\subsection{Capas de Seguridad en OpenSSH}
+El tráfico SSH cumple los principios de seguridad de la información. Estos son confidencialidad, con criptografía simétrica luego del cambio de claves. Integridad, con algoritmos MAC, quienes verifican la información y que no haya sido modificada. La autenticidad se cumple con la validación de claves del servidor, permitiendo que no se acepten intercambios y conexiones seguras. Disponibilidad con el protocolo TCP, que no es propio de SSH, pero permite todo el proceso de retransmisión de paquetes y flujo. Finalmente, No repudio se cumple a medias, ya que existen mecanismos de autenticación, pero sin firmas digitales de terceros para verificar.
+Disponibilidad: aunque SSH no la garantiza por sí mismo, el protocolo funciona sobre TCP, lo que permite retransmisión de paquetes, control de flujo y sesiones estables, salvo ataques de denegación de servicios externos.
+
+\subsection{Identificación de que protocolos no se cumplen}
+Se tiene que SSH no cumple con la disponibilidad. OpenSSH no incorpora mecanismos que garanticen que el servicio permanezca accesible frente a interrupciones maliciosas. Por otra parte, el no repudio no se cumple, ya que es posible autenticar usuarios mediante claves o credenciales. OpenSSH no implementa un esquema de firma digital verificable por un tercero.
+
+
+\section*{Conclusiones y comentarios}
+A partir del análisis realizado sobre el tráfico SSH capturado y las distintas versiones del cliente, se tiene que OpenSSH integra múltiples mecanismos de seguridad orientados a proteger la comunicación entre cliente y servidor. Para esto, se emplea un establecimiento de la conexión, junto al intercambio de claves y el uso de cifrado simétrico y MAC. Esto permite verificar en la práctica los principios de confidencialidad e integridad, ya que, luego de ver un mensaje New Keys, el contenido de los paquetes dejó de ser legible, lo que confirma que la información viaja protegida frente a un atacante que pudiera interceptarla. 
+
+Del mismo modo, los procesos de identificación del cliente y del servidor apoyan los principios de autenticidad y no repudio, aunque este último puede ser discutible dependiendo del mecanismo de llaves y la gestión de identidades que utilice el sistema. Sin embargo, se tiene que OpenSSH ofrece un diseño robusto que apunta también a la disponibilidad, salvo que existieran ataques externos (como DoS) que no fueron objeto de estudio en este laboratorio. 
+
+En conclusión, la evidencia obtenida en el tráfico capturado refleja que OpenSSH cumple de forma consistente con sus objetivos de seguridad, y que las variaciones entre versiones afectan directamente la huella criptográfica del cliente, lo que permite diferenciar implementaciones sin inspeccionar contenido protegido, reforzando la utilidad del fingerprinting mediante HASSH.
+\end{document}
