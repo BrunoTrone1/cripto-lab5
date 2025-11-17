@@ -30,8 +30,8 @@ Versión más reciente del servidor
 `c2_ssh.pcap` - Captura de tráfico SSH del cliente C2
 `c3_ssh.pcap` - Captura de tráfico SSH del cliente C3
 `c4_ssh.pcap` - Captura de tráfico SSH del cliente C4
-
-`hassh_c1.txt` - Fingerprint HASSH del cliente C1
+`c4_ssh_modified.pcap` - Captura de tráfico SSH del cliente C4 modificado
+`c4_ssh_recreate.pcap` - Captura de tráfico SSH del cliente C4 recreado
 
 ## Configuración
 
